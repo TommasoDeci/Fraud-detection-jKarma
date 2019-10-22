@@ -38,9 +38,18 @@ import org.jkarma.pbcd.events.PatternUpdateStartedEvent;
 import org.jkarma.pbcd.patterns.Patterns;
 import org.jkarma.pbcd.similarities.UnweightedJaccard;
 
-
+/**
+ * An application showing how to define a PBCD an how to run it 
+ * over a Stream<Purchase> instance. In this demo the stream is
+ * created in-memory by hand.
+ * @author Angelo Impedovo
+ */
 public class Demo {
 
+	/**
+	 * Returns an in-memory stream of purchases.
+	 * @return an in-memory stream of purchases.
+	 */
 	public static Stream<Purchase> getDataset(){
 		return Stream.of(
 			new Purchase(Product.SUGAR, Product.WINE, Product.BREAD),
@@ -64,6 +73,16 @@ public class Demo {
 
 	
 	
+	/**
+	 * Builds a PBCD based on frequent combinations of foods and drinks
+	 * in the blockwise sliding model. This PBCD computes the change score
+	 * by means of a binary jaccard score, and explain changes by extracting
+	 * the emerging patterns.
+	 * @param minFreq The minimum frequency threshold.
+	 * @param minChange The minimum change threshold.
+	 * @param blockSize The number of transactions to be consumed together.
+	 * @return the PBCD delegate.
+	 */
 	public static PBCD<Purchase, Product, TidSet, Boolean> getPBCD(float minFreq, float minChange, int blockSize){
 		//we prepare the time window model and the data accessor
 		WindowingStrategy<TidSet> model = Windows.blockwiseSliding();
@@ -85,6 +104,10 @@ public class Demo {
 
 	
 	
+	/**
+	 * Entry point of the application. 
+	 * @param args
+	 */
 	public static void main(String[] args){
 		int blockSize = 4;
 		float minFreq = 0.2f;
@@ -108,8 +131,11 @@ public class Demo {
 
 				@Override
 				public void changeDetected(ChangeDetectedEvent<Product, TidSet> event) {
+					//we show the change score
 					System.out.println("change detected: "+event.getAmount());
 					System.out.println("\tdescribed by:");
+					
+					//and the associated explanation
 					event.getDescription().forEach(p -> {
 						double freqReference = p.getFirstEval().getRelativeFrequency()*100;
 						double freqTarget = p.getSecondEval().getRelativeFrequency()*100;
@@ -118,7 +144,7 @@ public class Demo {
 						if(freqTarget > freqReference) {
 							message="increased frequency from ";
 						}else {
-							message="increased frequency from ";
+							message="decreased frequency from ";
 						}
 						message+=Double.toString(freqReference)+"% to "+Double.toString(freqTarget)+"%";
 						System.out.println("\t\t"+p.getItemSet()+" "+message);
@@ -127,6 +153,7 @@ public class Demo {
 
 				@Override
 				public void changeNotDetected(ChangeNotDetectedEvent<Product, TidSet> arg0) {
+					//we show the change score only
 					System.out.println("change not detected: "+arg0.getAmount());
 				}
 

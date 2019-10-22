@@ -15,6 +15,12 @@
  ******************************************************************************/
 package org.jkarma.examples.purchases.model;
 
+
+/**
+ * Public class implementing a product to be purchased.
+ * For simplicity, a product is defined by his name only.
+ * @author Angelo Impedovo
+ */
 public class Product implements Comparable<Product> {
 	
 	public static final Product BREAD = new Product("bread");    
@@ -23,30 +29,64 @@ public class Product implements Comparable<Product> {
     public static final Product SUGAR = new Product("sugar");
     public static final Product CAKE = new Product("cake");
 	
+    
+    /**
+     * Private status flag for itemsets.
+     * If true, then the itemset having this product for suffix
+     * already mixes drinks and foods. False, otherwise.
+     */
     public boolean alreadyMixed;
+    
+    
+    /**
+     * The name of the product.
+     */
 	private String name;
 	
+	
+	/**
+	 * Constructs a new product given his name.
+	 * @param pname
+	 */
 	public Product(String pname) {
 		this.alreadyMixed = true;
 		this.name = pname;
 	}
 	
+	
+	/**
+	 * Checks whether this product is a drink.
+	 * For simplicity we assume juice and wine to be the only drinks.
+	 * @return True if wine or juice. False otherwise.
+	 */
 	public boolean isDrink() {
-		return this.name.equals("juice") || this.name.equals("wine");
+		return this.name.equalsIgnoreCase("juice") || this.name.equalsIgnoreCase("wine");
 	}
 
+	
+	/**
+	 * Checks whether this product is a food (or, equivalently, not a drink).
+	 * @return True if neither wine nor juice, false otherwise
+	 */
 	public boolean isFood() {
 		return !this.isDrink();
 	}
 	
+	
+	/**
+	 * Returns the name of the product.
+	 * @return the name of the product.
+	 */
 	public String getName() {
 		return this.name;
 	}
+	
 	
 	@Override
 	public int compareTo(Product o) {
 		return this.name.compareTo(o.name);
 	}
+	
 	
 	@Override
 	public boolean equals(Object o) {
@@ -61,6 +101,7 @@ public class Product implements Comparable<Product> {
 		return result;
 	}
 	
+	@Override
 	public String toString() {
 		return this.name;
 	}

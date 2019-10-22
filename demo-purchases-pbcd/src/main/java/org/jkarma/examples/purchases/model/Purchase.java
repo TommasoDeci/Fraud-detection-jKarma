@@ -24,16 +24,57 @@ import org.jkarma.model.Transaction;
 
 import com.google.common.collect.Sets;
 
+
+/**
+ * Class defining a purchase as a transaction of products.
+ * The purchase follows the transactional notation. Therefore
+ * it is uniquely identified by a transaction id (tid), it is
+ * registered at a given timestamp and contains a set of products
+ * purchased together.
+ * @author Angelo Impedovo
+ */
 public class Purchase implements Transaction<Product>{
 	
+	/**
+	 * Private counter of transaction ids.
+	 */
 	private static int lastTid = 0;
 	
+	/**
+	 * Returns a previously unused transaction id.
+	 * @return
+	 */
+	public static int getNextTid() {
+		int value = Purchase.lastTid;
+		Purchase.lastTid++;
+		return value;
+	}
+	
+	
+	/**
+	 * The transaction id of the purchase.
+	 */
 	private int tid;
+	
+	
+	/**
+	 * The timestamp of the purchase.
+	 */
 	private Instant timestamp;
+	
+	
+	/**
+	 * The set of products associated with the purchase.
+	 */
 	private Set<Product> items;
 	
+	
+	/**
+	 * Constructs a purchase of different products.
+	 * @param products The products that have been purchased together.
+	 */
 	public Purchase(Product... products) {
-		this.tid = Purchase.lastTid;
+		this.tid = Purchase.getNextTid();
 		this.timestamp = Instant.now();
 		this.items = Sets.newHashSet(products);
 	}
