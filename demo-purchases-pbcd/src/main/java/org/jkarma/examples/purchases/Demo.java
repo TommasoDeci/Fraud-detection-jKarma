@@ -21,10 +21,12 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import com.sun.xml.internal.rngom.parse.host.Base;
+import org.apache.commons.lang3.ObjectUtils;
 import org.jkarma.examples.purchases.model.FPOF;
 import org.jkarma.examples.purchases.model.Product;
 import org.jkarma.examples.purchases.model.Transazione;
 import org.jkarma.examples.purchases.model.Utils;
+import org.jkarma.mining.interfaces.ItemSet;
 import org.jkarma.mining.joiners.TidSet;
 import org.jkarma.mining.providers.BaseProvider;
 import org.jkarma.mining.providers.TidSetProvider;
@@ -58,17 +60,13 @@ import org.jkarma.pbcd.similarities.UnweightedJaccard;
  */
 public class Demo
 {
-	private static List<Transazione> transazioni;
-	private static Map<String,Float> itemCount;
-	private static  Map<String,Float> patternSup;
-	private static Set<String> keys;
 	/**
 	 * Returns an in-memory stream of purchases.
 	 * @return an in-memory stream of purchases.
 	 */
 	public static Stream<Transazione> getDataset(String fileCSV)
 	{
-		transazioni = new LinkedList<>();
+		List<Transazione> transazioni = new LinkedList<>();
 		File file = new File(fileCSV);
 
 		try
@@ -88,50 +86,6 @@ public class Demo
 		{
 			System.err.println("FIle not found!");
 		}
-
-		itemCount = new HashMap<>();
-		Iterator<Transazione> itTrans = transazioni.iterator(); //iteratore su tutte le transazioni
-		Iterator<String> itString;
-		while(itTrans.hasNext())
-		{
-			itString = itTrans.next().iterator();  //iteratore sui valori di una singola transazione
-			String currentItem;
-			while(itString.hasNext())
-			{
-				currentItem = itString.next();
-				if(itemCount.containsKey(currentItem)){  //se l'elemento e' gia' stato letto allora incrementa il suo conteggio di 1
-					itemCount.replace(currentItem,itemCount.get(currentItem)+1);
-				} else {                                //altrimenti inseriscilo in Map
-					itemCount.put(currentItem,1f);
-				}
-			}
-		}
-
-		keys = itemCount.keySet();
-		itString = keys.iterator();
-		String currentKey;
-		while(itString.hasNext())
-		{
-			currentKey = itString.next();
-			itemCount.replace(currentKey,itemCount.get(currentKey)/transazioni.size());     //sostituisco tutti i conteggi con il supporto
-		}
-
-
-//		itTrans = transazioni.iterator();           //iteratore su tutte le transazioni
-	//	Transazione currentTrans;
-//		Integer currentID;
-//		while(itTrans.hasNext())
-//		{
-//			currentTrans = itTrans.next();
-//			itString = currentTrans.iterator();     //iteratore sui valori di una singola transazione
-//			currentID = currentTrans.getId();
-//			float support = 1;     //inizializzo il supporto della transazione a 1 dato che sara' per forza coperta dall'insieme vuoto
-//			while(itString.hasNext())
-//			{
-//				support += itemCount.get(itString.next());      //il supporto sara' uguale alla somma di tutti i supporti dei valori che la transazione possiede
-//			}
-//			patternSup.put(currentID.toString(),support);   //inserisco il supporto totale della transazione in una Map
-//		}
 
 		return transazioni.stream();
 	}
@@ -172,11 +126,10 @@ public class Demo
 	 * @param args
 	 */
 	public static void main(String[] args){
-		int blockSize = 4;
+		int blockSize = 1;
 		float minFreq = 0.7f;
 		float minChange = 0.5f;
-		Supplier<Stream<Transazione>> streamSupplier = () -> Demo.getDataset("10011-319-150-226.csv");
-		Stream<Transazione> dataset = streamSupplier.get();
+		Stream<Transazione> dataset =  Demo.getDataset("10011-319-150-226.csv");
 		PBCD<Transazione,String,TidSet,Boolean> detector = Demo.getPBCD(minFreq, minChange, blockSize);
 
 		//we listen for events
@@ -235,85 +188,40 @@ public class Demo
 		);
 
 
-		//we consume the dataset
-//		dataset.forEach(detector);			//calcola i pattern frequenti
-//		patternSup = new HashMap<>();
-//		String currentPatt;
-//		for(Pattern<String ,TidSet> p : detector.getLattice())
-//		{
-//			currentPatt = p.toString().split("}")[0].replace("{","");		//pattern corrente, es.: visa,dist2Null
-//			patternSup.put(currentPatt,1f);		//inizializzo il supporto del pattern a 1 dato che sara' per forza coperto dall'insieme vuoto
-//			Iterator<String> itKeys = keys.iterator();		//iteratore sui possibili valori nel .CSV
-//			String currentKey;
-//			while(itKeys.hasNext())
-//			{
-//				currentKey = itKeys.next();		//valore corrente
-//				if(currentPatt.contains(currentKey))		//se il pattern contiene quel valore, visa ad esempio
-//				{
-//					patternSup.replace(currentPatt,patternSup.get(currentPatt) + itemCount.get(currentKey)); 	//il suo supporto viene incrementato in base a quello del singolo valore
-//				}
-//			}
-//		}
-//
-//		System.out.println(patternSup);
+		Map<Integer,Float> transSupport = new HashMap<>();
+		dataset.forEach(transaction -> {
+			detector.accept(transaction);
+			float num = 1;		//inizializzo il numeratore a 1 perche' la transazione e' sicuramente coperta dall'insieme vuoto
+			for(Pattern<String,TidSet> p : detector.getLattice())
+			{
+				Set<String> valori = new HashSet<>();
+				addValue(valori,p.getItemSet());		//funzione ricorsiva che aggiunge al set tutti gli elementi del pattern
+				if(transaction.getItems().containsAll(valori))
+				{
+					try {
+						num += p.getFirstEval().getAbsoluteFrequency();		//incremento il numeratore col supporto del relativo pattern che la copre
+					}catch(NullPointerException e){
 
-//		dataset = streamSupplier.get();
-		dataset.forEach(trans -> {
-			System.out.println(trans);
+					}
+				}
+			}
+			transSupport.put(transaction.getId(),num);		//inserisco il supporto della transazione in una Map al fine di calcolare il massimo tra i supporti e metterlo al denominatore
 		});
 
+		float den = Collections.max(transSupport.values());		//denominatore uguale al massimo tra i supporti
+		for (Map.Entry<Integer,Float> entry : transSupport.entrySet())
+		{
+			System.out.println("TransactionID = " + entry.getKey() + ": " + (entry.getValue() / den));		//stampo a video i diversi FPOF
+		}
 
+	}
 
-		//	Map<String,Float> supports = new HashMap<>();
-//		dataset.forEach(transaction -> {
-//			detector.accept(transaction);
-//			for(Pattern<String,TidSet> p : detector.getLattice())
-//			{
-//				try
-//				{
-//					if (supports.containsKey(p.toString()))
-//					{
-//						supports.replace(p.toString(), supports.get(p.toString()) +  p.getSecondEval().getAbsoluteFrequency());
-//					} else {
-//						supports.put(p.toString(), (float) (p.getFirstEval().getAbsoluteFrequency() + p.getSecondEval().getAbsoluteFrequency()));
-//					}
-//				}
-//				catch (NullPointerException e)
-//				{
-//
-//				}
-//
-//			}
-//		});
-
-//		for (Map.Entry<String,Float> entry : supports.entrySet())
-//		{
-//			supports.replace(entry.getKey(), entry.getValue()/46);
-//		}
-//
-//		dataset = streamSupplier.get();
-//		Float max = Collections.max(supports.values());
-//		Set<String> keys = supports.keySet();
-//		dataset.forEach(transaction -> {
-//			Iterator<String> itSup = transaction.iterator();
-//			Double transactionSupport = 0d;
-//			while(itSup.hasNext())
-//			{
-//				String currentString = itSup.next();
-//				Iterator<String> itKeys = keys.iterator();
-//				while(itKeys.hasNext())
-//				{
-//					String currentKey = itKeys.next();
-//					if(currentKey.contains(currentString))
-//					{
-//						transactionSupport += supports.get(currentKey);
-//					}
-//				}
-//			}
-//			System.out.println(transaction.getId() + " has FPOF of: " + transactionSupport/max);
-//
-//		});
-
+	private static void addValue(Set<String> set, ItemSet<String,Pair<TidSet>> itemSet)
+	{
+		if(itemSet.getPrefix() != null) {
+			set.add(itemSet.getSuffix());
+			addValue(set,itemSet.getPrefix());		//passo ricorsivo
+		}
 	}
 
 }
