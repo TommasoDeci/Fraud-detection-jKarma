@@ -1,3 +1,3 @@
-# jkarma-products-pbcd-demo
+# Fraud-detection-jKarma
 
-Demo project using jKarma for detecting changes on the customer purchases history. The problem is solved by means of a PBCD algorithm built on top of a customized pattern mining strategy.
+Demo project using jKarma for detecting fraud over user's transactions. The problem is solved by means of a PBCD algorithm built on top of a customized pattern mining strategy.
