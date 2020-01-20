@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="jkarma-dev-extended">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/demo-purchases-pbcd/lib/jkarma-dev-extended.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
