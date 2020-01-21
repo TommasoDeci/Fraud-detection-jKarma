@@ -17,7 +17,7 @@ package org.jkarma.examples.purchases;
 
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import org.jkarma.examples.purchases.model.Transazione;
@@ -116,10 +116,10 @@ public class Demo
 	 * Entry point of the application.
 	 * @param args
 	 */
-	public static void main(String[] args){
-		int blockSize = 1;
-		float minFreq = 0.8f;
-		float minChange = 0.98f;
+	public static void main(String[] args) throws FileNotFoundException {
+		int blockSize = 5;
+		float minFreq = 0.4f;
+		float minChange = 0.9f;
 		Stream<Transazione> dataset =  Demo.getDataset("10011-319-150-226.csv");
 		PBCD<Transazione,String,TidSet,Boolean> detector = Demo.getPBCD(minFreq, minChange, blockSize);
 
@@ -162,7 +162,7 @@ public class Demo
 					@Override
 					public void changeNotDetected(ChangeNotDetectedEvent<String, TidSet> arg0) {
 						//we show the change score only
-						System.out.println("change not detected: "+arg0.getAmount());
+						System.out.println("change not detected: "+ arg0.getAmount());
 					}
 
 					@Override
@@ -179,33 +179,36 @@ public class Demo
 		);
 
 		dataset.forEach(transaction -> {
-			detector.accept(transaction);
-			float num = 0;
-			float den = 0;
-			for(Pattern<String,TidSet> p : detector.getLattice())
-			{
-				Set<String> valori = new HashSet<>();
-				addValue(valori,p.getItemSet());		//funzione ricorsiva che aggiunge al set tutti gli elementi del pattern
-				if(transaction.getItems().containsAll(valori))
-				{
+			detector.accept(transaction);		//calcolo prima i pattern
+
+			try {
+				float num = 0;
+				float den = 0;
+				for (Pattern<String, TidSet> p : detector.getLattice()) {		//IllegalArgumentException finche' non raggiunge il numero di transazioni pari a blockSize
+					Set<String> valori = new HashSet<>();
+					addValue(valori, p.getItemSet());        //funzione ricorsiva che aggiunge al set tutti gli elementi del pattern
+					if (transaction.getItems().containsAll(valori)) {
+						try {
+							num += p.getFirstEval().getRelativeFrequency();        //incremento il numeratore col supporto del relativo pattern che la copre
+						} catch (NullPointerException e) {
+								//a causa del primo parametro che trova ogni volta, ovvero il parametro vuoto, nullo
+						}
+					}
+
 					try {
-						num += p.getFirstEval().getAbsoluteFrequency();		//incremento il numeratore col supporto del relativo pattern che la copre
-					}catch(NullPointerException e){
+						den += p.getFirstEval().getRelativeFrequency();
+					} catch (NullPointerException e) {
 
 					}
 				}
 
-				try {
-					den += p.getFirstEval().getAbsoluteFrequency();
-				}catch(NullPointerException e){
-
+				if (den == 0) {
+					System.out.println("TransactionID: " + transaction.getId() + " has FPOF of: 0");
+				} else {
+					System.out.println("TransactionID: " + transaction.getId() + " has FPOF of: " + num / den);
 				}
-			}
-
-			if(den == 0){
-				System.out.println("TransactionID: " + transaction.getId() + " has FPOF of: 0");
-			}else{
-				System.out.println("TransactionID: " + transaction.getId() + " has FPOF of: " + num/den);
+			}catch(IllegalArgumentException e){
+				System.err.println("Calculating pattern...");
 			}
 		});
 
