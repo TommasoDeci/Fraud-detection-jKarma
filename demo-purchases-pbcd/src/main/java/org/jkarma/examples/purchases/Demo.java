@@ -17,26 +17,17 @@ package org.jkarma.examples.purchases;
 
 import java.io.*;
 import java.util.*;
-import java.util.function.Supplier;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
-import com.sun.xml.internal.rngom.parse.host.Base;
-import org.apache.commons.lang3.ObjectUtils;
-import org.jkarma.examples.purchases.model.FPOF;
-import org.jkarma.examples.purchases.model.Product;
 import org.jkarma.examples.purchases.model.Transazione;
-import org.jkarma.examples.purchases.model.Utils;
 import org.jkarma.mining.interfaces.ItemSet;
 import org.jkarma.mining.joiners.TidSet;
-import org.jkarma.mining.providers.BaseProvider;
 import org.jkarma.mining.providers.TidSetProvider;
 import org.jkarma.mining.structures.MiningStrategy;
 import org.jkarma.mining.structures.Pair;
 import org.jkarma.mining.structures.Strategies;
-import org.jkarma.mining.windows.CumulativeLandmarkStrategy;
-import org.jkarma.mining.windows.WindowingStrategy;
 import org.jkarma.mining.windows.Windows;
-import org.jkarma.model.LabeledEdge;
 import org.jkarma.pbcd.descriptors.Descriptors;
 import org.jkarma.pbcd.detectors.Detectors;
 import org.jkarma.pbcd.detectors.PBCD;
@@ -94,7 +85,7 @@ public class Demo
 //		return Utils.parseStream(new File(pathName), Transazione.class)
 //				.sorted(Comparator.comparing(Transazione::getTimestamp));
 //	}
-	
+
 	/**
 	 * Builds a PBCD based on frequent combinations of foods and drinks
 	 * in the blockwise sliding model. This PBCD computes the change score
@@ -112,8 +103,8 @@ public class Demo
 
 		//we instantiate the mining strategy
 		MiningStrategy<String, TidSet> strategy = Strategies
-				.uponItemsets(new HashSet<String>()).limitDepth(3).eclat(minFreq).dfs(accessor);
-		
+				.uponItemsets(new HashSet<String>()).limitDepth(19).eclat(minFreq).dfs(accessor);
+
 		//we assemble the PBCD
 		return Detectors.upon(strategy)
 				.unweighted((p,t) -> Patterns.isFrequent(p, minFreq, t), new UnweightedJaccard())
@@ -127,8 +118,8 @@ public class Demo
 	 */
 	public static void main(String[] args){
 		int blockSize = 1;
-		float minFreq = 0.7f;
-		float minChange = 0.5f;
+		float minFreq = 0.8f;
+		float minChange = 0.98f;
 		Stream<Transazione> dataset =  Demo.getDataset("10011-319-150-226.csv");
 		PBCD<Transazione,String,TidSet,Boolean> detector = Demo.getPBCD(minFreq, minChange, blockSize);
 
@@ -187,11 +178,10 @@ public class Demo
 				}
 		);
 
-
-		Map<Integer,Float> transSupport = new HashMap<>();
 		dataset.forEach(transaction -> {
 			detector.accept(transaction);
-			float num = 1;		//inizializzo il numeratore a 1 perche' la transazione e' sicuramente coperta dall'insieme vuoto
+			float num = 0;
+			float den = 0;
 			for(Pattern<String,TidSet> p : detector.getLattice())
 			{
 				Set<String> valori = new HashSet<>();
@@ -204,15 +194,20 @@ public class Demo
 
 					}
 				}
-			}
-			transSupport.put(transaction.getId(),num);		//inserisco il supporto della transazione in una Map al fine di calcolare il massimo tra i supporti e metterlo al denominatore
-		});
 
-		float den = Collections.max(transSupport.values());		//denominatore uguale al massimo tra i supporti
-		for (Map.Entry<Integer,Float> entry : transSupport.entrySet())
-		{
-			System.out.println("TransactionID = " + entry.getKey() + ": " + (entry.getValue() / den));		//stampo a video i diversi FPOF
-		}
+				try {
+					den += p.getFirstEval().getAbsoluteFrequency();
+				}catch(NullPointerException e){
+
+				}
+			}
+
+			if(den == 0){
+				System.out.println("TransactionID: " + transaction.getId() + " has FPOF of: 0");
+			}else{
+				System.out.println("TransactionID: " + transaction.getId() + " has FPOF of: " + num/den);
+			}
+		});
 
 	}
 
