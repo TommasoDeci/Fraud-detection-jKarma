@@ -17,6 +17,7 @@ package org.jkarma.examples.purchases;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
@@ -116,13 +117,14 @@ public class Demo
 	 * Entry point of the application.
 	 * @param args
 	 */
-	public static void main(String[] args) throws FileNotFoundException {
-		int blockSize = 5;
-		float minFreq = 0.4f;
-		float minChange = 0.9f;
-		Stream<Transazione> dataset =  Demo.getDataset("10011-319-150-226.csv");
+	public static void main(String[] args){
+		int blockSize = 20;
+		float minFreq = 0.5f;
+		float minChange = 0.8f;
+		Stream<Transazione> dataset =  Demo.getDataset("4504-500-185-219.csv");
 		PBCD<Transazione,String,TidSet,Boolean> detector = Demo.getPBCD(minFreq, minChange, blockSize);
 
+		AtomicBoolean patternChanged = new AtomicBoolean();
 		//we listen for events
 		detector.registerListener(
 				new PBCDEventListener<String,TidSet>() {
@@ -139,6 +141,7 @@ public class Demo
 
 					@Override
 					public void changeDetected(ChangeDetectedEvent<String, TidSet> event) {
+						patternChanged.set(true);
 						//we show the change score
 						System.out.println("change detected: "+event.getAmount());
 //						System.out.println("\tdescribed by:");
@@ -161,6 +164,7 @@ public class Demo
 
 					@Override
 					public void changeNotDetected(ChangeNotDetectedEvent<String, TidSet> arg0) {
+						patternChanged.set(false);
 						//we show the change score only
 						System.out.println("change not detected: "+ arg0.getAmount());
 					}
@@ -178,36 +182,50 @@ public class Demo
 				}
 		);
 
+		AtomicInteger transactionCount = new AtomicInteger();
 		dataset.forEach(transaction -> {
 			detector.accept(transaction);		//calcolo prima i pattern
-
-			try {
+			try
+			{
 				float num = 0;
 				float den = 0;
-				for (Pattern<String, TidSet> p : detector.getLattice()) {		//IllegalArgumentException finche' non raggiunge il numero di transazioni pari a blockSize
-					Set<String> valori = new HashSet<>();
-					addValue(valori, p.getItemSet());        //funzione ricorsiva che aggiunge al set tutti gli elementi del pattern
-					if (transaction.getItems().containsAll(valori)) {
-						try {
-							num += p.getFirstEval().getRelativeFrequency();        //incremento il numeratore col supporto del relativo pattern che la copre
-						} catch (NullPointerException e) {
-								//a causa del primo parametro che trova ogni volta, ovvero il parametro vuoto, nullo
+				for (Pattern<String, TidSet> p : detector.getLattice()) //IllegalArgumentException finche' non raggiunge il numero di transazioni pari a blockSize
+				{
+					try
+					{
+						double freq;
+						if(transactionCount.get() < blockSize || patternChanged.get()){		//se mi trovo nel primo blocco o e' stato rilevato un change
+							freq = p.getSecondEval().getRelativeFrequency();	//prendi la frequenza da w2 (secondEval)
+						}else{
+							freq = p.getFirstEval().getRelativeFrequency();
 						}
+
+						Set<String> valori = new HashSet<>();
+						addValue(valori, p.getItemSet());        //funzione ricorsiva che aggiunge al set tutti gli elementi del pattern
+						if (transaction.getItems().containsAll(valori))
+						{
+							num += freq;        //incremento il numeratore col supporto del relativo pattern che la copre
+						}
+						den += freq;
+
 					}
-
-					try {
-						den += p.getFirstEval().getRelativeFrequency();
-					} catch (NullPointerException e) {
-
+					catch (NullPointerException e)
+					{
+						//dato che il pirmo pattern risulta essere sempre vuoto, nullo cioe'
 					}
 				}
+
+				transactionCount.getAndIncrement();
 
 				if (den == 0) {
 					System.out.println("TransactionID: " + transaction.getId() + " has FPOF of: 0");
 				} else {
-					System.out.println("TransactionID: " + transaction.getId() + " has FPOF of: " + num / den);
+					System.out.println("TransactionID: " + transaction.getId() + " has FPOF of: " + num / den + " and isFraud = " + transaction.getItems().toArray()[18]);
 				}
-			}catch(IllegalArgumentException e){
+
+			}
+			catch(IllegalArgumentException e)
+			{
 				System.err.println("Calculating pattern...");
 			}
 		});

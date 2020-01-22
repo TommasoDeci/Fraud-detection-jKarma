@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletionService;
 
+import org.jkarma.mining.joiners.TidSet;
 import org.jkarma.model.Transaction;
 
 import com.google.common.collect.Sets;
