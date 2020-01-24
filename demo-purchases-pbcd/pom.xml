@@ -33,14 +33,5 @@
    	<skipTests>true</skipTests>
    	<revision>dev</revision>
   </properties>
-  
-  <dependencies>
-    <dependency>
-      <groupId>org.jkarma</groupId>
-      <artifactId>jkarma-core</artifactId>
-      <version>1.0.0</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/lib/jkarma-1.0.0.jar</systemPath>
-    </dependency>
-  </dependencies>
+    
 </project>

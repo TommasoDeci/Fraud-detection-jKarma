@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="confusion-matrix-1.0">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/demo-purchases-pbcd/lib/confusion-matrix-1.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

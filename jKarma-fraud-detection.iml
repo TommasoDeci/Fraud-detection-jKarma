@@ -8,5 +8,7 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="jkarma-dev-extended" level="project" />
+    <orderEntry type="library" name="args4j" level="project" />
+    <orderEntry type="library" name="confusion-matrix-1.0" level="project" />
   </component>
 </module>

@@ -19,6 +19,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletionService;
 
+import com.univocity.parsers.annotations.Convert;
+import org.jkarma.examples.purchases.WordsToTransactionConverter;
 import org.jkarma.mining.joiners.TidSet;
 import org.jkarma.model.Transaction;
 
@@ -35,9 +37,17 @@ import com.google.common.collect.Sets;
  */
 public class Transazione implements Transaction<String>
 {
+	@Convert(conversionClass = WordsToTransactionConverter.class, args = {","})
 	private List<String> valori;
+
 	private Instant timestamp;
 	private Integer ID;
+
+
+	public Transazione()
+	{
+		//do nothing, just for the CSV parser
+	}
 
 	public Transazione(String[] trans)
 	{

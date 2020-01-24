@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
+import com.github.habernal.confusionmatrix.ConfusionMatrix;
 import org.jkarma.examples.purchases.model.Transazione;
 import org.jkarma.mining.interfaces.ItemSet;
 import org.jkarma.mining.joiners.TidSet;
@@ -42,27 +43,39 @@ import org.jkarma.pbcd.events.PatternUpdateStartedEvent;
 import org.jkarma.pbcd.patterns.Pattern;
 import org.jkarma.pbcd.patterns.Patterns;
 import org.jkarma.pbcd.similarities.UnweightedJaccard;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
+import org.kohsuke.args4j.OptionHandlerFilter;
 
 
-/**
- * An application showing how to define a PBCD an how to run it 
- * over a Stream<Purchase> instance. In this demo the stream is
- * created in-memory by hand.
- * @author Angelo Impedovo
- */
 public class Demo
 {
-	/**
-	 * Returns an in-memory stream of purchases.
-	 * @return an in-memory stream of purchases.
-	 */
-	public static Stream<Transazione> getDataset(String fileCSV)
+	@Option(name="-ms", aliases="--minSup", usage="Threshold above which a pattern is considered")
+	public float minSup = 0.4f;
+
+	@Option(name="-mc", aliases="--minChange", usage="Threshold above which two blocks are different")
+	public float minChange = 0.8f;
+
+	@Option(name="-bs", aliases="--blockSize", usage="Number of examples into a single block")
+	public static int blockSize = 4;
+
+	@Option(name="-ma", aliases="--minAnomaly", usage="Threshold below which an example is anomalous")
+	public static float minAnomaly = 0.2f;
+
+	@Option(name="-d", aliases="--depth", usage="Depth of research space of patterns")
+	public int depth = 3;
+
+	@Option(name="-f", aliases="--file", usage="Fully qualified path and name of file.", required=true)
+	private static String fileName;
+
+
+	public static Stream<Transazione> getDataset(String fileCSV) throws IOException
 	{
 		List<Transazione> transazioni = new LinkedList<>();
 		File file = new File(fileCSV);
 
-		try
-		{
+
 			BufferedReader br = new BufferedReader(new FileReader(file));
 			String st;
 			String values[];
@@ -73,162 +86,183 @@ public class Demo
 				transazioni.add(new Transazione(values));
 			}
 
-		}
-		catch(IOException e)
-		{
-			System.err.println("FIle not found!");
-		}
-
 		return transazioni.stream();
 	}
 
-//	public static Stream<Transazione> getData(String pathName) throws FileNotFoundException {
-//		return Utils.parseStream(new File(pathName), Transazione.class)
-//				.sorted(Comparator.comparing(Transazione::getTimestamp));
-//	}
+	public Stream<Transazione> getData() throws FileNotFoundException{
+		return Utils.parseStream(new File(this.fileName), Transazione.class)
+				.sorted(Comparator.comparing(Transazione::getTimestamp));
+	}
 
-	/**
-	 * Builds a PBCD based on frequent combinations of foods and drinks
-	 * in the blockwise sliding model. This PBCD computes the change score
-	 * by means of a binary jaccard score, and explain changes by extracting
-	 * the emerging patterns.
-	 * @param minFreq The minimum frequency threshold.
-	 * @param minChange The minimum change threshold.
-	 * @param blockSize The number of transactions to be consumed together.
-	 * @return the PBCD delegate.
-	 */
-	public static PBCD<Transazione, String, TidSet, Boolean> getPBCD(float minFreq, float minChange, int blockSize){
 
+	public PBCD<Transazione, String, TidSet, Boolean> getPBCD()
+	{
 		//we prepare the time window model and the data accessor
 		TidSetProvider<String> accessor = new TidSetProvider<>(Windows.cumulativeSliding());
 
 		//we instantiate the mining strategy
 		MiningStrategy<String, TidSet> strategy = Strategies
-				.uponItemsets(new HashSet<String>()).limitDepth(19).eclat(minFreq).dfs(accessor);
+				.uponItemsets(new HashSet<String>()).limitDepth(this.depth).eclat(this.minSup).dfs(accessor);
 
 		//we assemble the PBCD
 		return Detectors.upon(strategy)
-				.unweighted((p,t) -> Patterns.isFrequent(p, minFreq, t), new UnweightedJaccard())
-				.describe(Descriptors.partialEps(minFreq, 1.00))
-				.build(minChange, blockSize);
+				.unweighted((p,t) -> Patterns.isFrequent(p, this.minSup, t), new UnweightedJaccard())
+				.describe(Descriptors.partialEps(this.minSup, 1.00))
+				.build(this.minChange, this.blockSize);
 	}
 
-	/**
-	 * Entry point of the application.
-	 * @param args
-	 */
-	public static void main(String[] args){
-		int blockSize = 20;
-		float minFreq = 0.5f;
-		float minChange = 0.8f;
-		Stream<Transazione> dataset =  Demo.getDataset("4504-500-185-219.csv");
-		PBCD<Transazione,String,TidSet,Boolean> detector = Demo.getPBCD(minFreq, minChange, blockSize);
+	public static void main(String[] args) throws IOException
+	{
+		final Demo demo = new Demo();
+		final CmdLineParser argsParser = new CmdLineParser(demo);
+		try {
+			//we parse the command line arguments
+			argsParser.parseArgument(args);
 
-		AtomicBoolean patternChanged = new AtomicBoolean();
-		//we listen for events
-		detector.registerListener(
-				new PBCDEventListener<String,TidSet>() {
+			Stream<Transazione> dataset =  demo.getData();
+			PBCD<Transazione,String,TidSet,Boolean> detector = demo.getPBCD();
 
-					@Override
-					public void patternUpdateCompleted(PatternUpdateCompletedEvent<String, TidSet> arg0) {
-						//do nofing;
-					}
-
-					@Override
-					public void patternUpdateStarted(PatternUpdateStartedEvent<String, TidSet> arg0) {
-						//do nothing
-					}
-
-					@Override
-					public void changeDetected(ChangeDetectedEvent<String, TidSet> event) {
-						patternChanged.set(true);
-						//we show the change score
-						System.out.println("change detected: "+event.getAmount());
-//						System.out.println("\tdescribed by:");
-//
-//						//and the associated explanation
-//						event.getDescription().forEach(p -> {
-//							double freqReference = p.getFirstEval().getRelativeFrequency()*100;
-//							double freqTarget = p.getSecondEval().getRelativeFrequency()*100;
-//
-//							String message;
-//							if(freqTarget > freqReference) {
-//								message="increased frequency from ";
-//							}else {
-//								message="decreased frequency from ";
-//							}
-//							message+=Double.toString(freqReference)+"% to "+Double.toString(freqTarget)+"%";
-//							System.out.println("\t\t"+p.getItemSet()+" "+message);
-//						});
-					}
-
-					@Override
-					public void changeNotDetected(ChangeNotDetectedEvent<String, TidSet> arg0) {
-						patternChanged.set(false);
-						//we show the change score only
-						System.out.println("change not detected: "+ arg0.getAmount());
-					}
-
-					@Override
-					public void changeDescriptionCompleted(ChangeDescriptionCompletedEvent<String, TidSet> arg0) {
-						//do nothing
-					}
-
-					@Override
-					public void changeDescriptionStarted(ChangeDescriptionStartedEvent<String, TidSet> arg0) {
-						//do nothing
-					}
-
-				}
-		);
-
-		AtomicInteger transactionCount = new AtomicInteger();
-		dataset.forEach(transaction -> {
-			detector.accept(transaction);		//calcolo prima i pattern
-			try
-			{
-				float num = 0;
-				float den = 0;
-				for (Pattern<String, TidSet> p : detector.getLattice()) //IllegalArgumentException finche' non raggiunge il numero di transazioni pari a blockSize
-				{
-					try
+			AtomicBoolean patternChanged = new AtomicBoolean();
+			//we listen for events
+			detector.registerListener(
+					new PBCDEventListener<String,TidSet>()
 					{
-						double freq;
-						if(transactionCount.get() < blockSize || patternChanged.get()){		//se mi trovo nel primo blocco o e' stato rilevato un change
-							freq = p.getSecondEval().getRelativeFrequency();	//prendi la frequenza da w2 (secondEval)
-						}else{
-							freq = p.getFirstEval().getRelativeFrequency();
+						@Override
+						public void patternUpdateCompleted(PatternUpdateCompletedEvent<String, TidSet> arg0) {
+							//do nofing;
 						}
 
-						Set<String> valori = new HashSet<>();
-						addValue(valori, p.getItemSet());        //funzione ricorsiva che aggiunge al set tutti gli elementi del pattern
-						if (transaction.getItems().containsAll(valori))
+						@Override
+						public void patternUpdateStarted(PatternUpdateStartedEvent<String, TidSet> arg0) {
+							//do nothing
+						}
+
+						@Override
+						public void changeDetected(ChangeDetectedEvent<String, TidSet> event)
 						{
-							num += freq;        //incremento il numeratore col supporto del relativo pattern che la copre
+							patternChanged.set(true);
+							System.out.println("change detected: "+event.getAmount());
+	//						System.out.println("\tdescribed by:");
+	//
+	//						//and the associated explanation
+	//						event.getDescription().forEach(p -> {
+	//							double freqReference = p.getFirstEval().getRelativeFrequency()*100;
+	//							double freqTarget = p.getSecondEval().getRelativeFrequency()*100;
+	//
+	//							String message;
+	//							if(freqTarget > freqReference) {
+	//								message="increased frequency from ";
+	//							}else {
+	//								message="decreased frequency from ";
+	//							}
+	//							message+=Double.toString(freqReference)+"% to "+Double.toString(freqTarget)+"%";
+	//							System.out.println("\t\t"+p.getItemSet()+" "+message);
+	//						});
 						}
-						den += freq;
+
+						@Override
+						public void changeNotDetected(ChangeNotDetectedEvent<String, TidSet> arg0)
+						{
+							patternChanged.set(false);
+							System.out.println("change not detected: "+ arg0.getAmount());
+						}
+
+						@Override
+						public void changeDescriptionCompleted(ChangeDescriptionCompletedEvent<String, TidSet> arg0) {
+							//do nothing
+						}
+
+						@Override
+						public void changeDescriptionStarted(ChangeDescriptionStartedEvent<String, TidSet> arg0) {
+							//do nothing
+						}
 
 					}
-					catch (NullPointerException e)
+			);
+
+			AtomicInteger transactionCount = new AtomicInteger();
+			Vector<Byte> predetti = new Vector<>();
+			Vector<Byte> reali = new Vector<>();
+			dataset.forEach(transaction -> {
+				detector.accept(transaction);		//calcolo prima i pattern
+				try
+				{
+					float num = 0;
+					float den = 0;
+					for (Pattern<String, TidSet> p : detector.getLattice()) //IllegalArgumentException finche' non raggiunge il numero di transazioni pari a blockSize
 					{
-						//dato che il pirmo pattern risulta essere sempre vuoto, nullo cioe'
+						try
+						{
+							double freq;
+							if(patternChanged.get() || transactionCount.get() < blockSize){		//se mi trovo nel primo blocco o e' stato rilevato un change
+								freq = p.getSecondEval().getRelativeFrequency();	//prendi la frequenza da w2 (secondEval)
+							}else{
+								freq = p.getFirstEval().getRelativeFrequency();
+							}
+
+							Set<String> valori = new HashSet<>();
+							addValue(valori, p.getItemSet());        //funzione ricorsiva che aggiunge al set tutti gli elementi del pattern
+							if (transaction.getItems().containsAll(valori))
+							{
+								num += freq;        //incremento il numeratore col supporto del relativo pattern che la copre
+							}
+							den += freq;
+
+						}
+						catch (NullPointerException e)
+						{
+							//dato che il pirmo pattern risulta essere sempre vuoto, nullo cioe'
+						}
+					}
+					transactionCount.getAndIncrement();
+
+					float fpof = num/den;
+					if(fpof < minAnomaly){		//se il FPOF e' sotto la soglia di anomalia
+						predetti.add((byte) 1);
+					}else{
+						predetti.add((byte) 0);
+					}
+
+					if(transaction.getItems().toArray()[18].equals("TRUE")){	//se la transazione e' effettivamente fraudolenta
+						reali.add((byte) 1);
+					}else{
+						reali.add((byte) 0);
 					}
 				}
-
-				transactionCount.getAndIncrement();
-
-				if (den == 0) {
-					System.out.println("TransactionID: " + transaction.getId() + " has FPOF of: 0");
-				} else {
-					System.out.println("TransactionID: " + transaction.getId() + " has FPOF of: " + num / den + " and isFraud = " + transaction.getItems().toArray()[18]);
+				catch(IllegalArgumentException e)
+				{
+					System.err.println("Calculating pattern...");
 				}
+			});
 
-			}
-			catch(IllegalArgumentException e)
+			ConfusionMatrix cm = new ConfusionMatrix();		//creo la matrice di confusione
+			int i = 0;
+			while(i < predetti.size())
 			{
-				System.err.println("Calculating pattern...");
+				if(predetti.get(i) == 0 && reali.get(i) == 0){
+					cm.increaseValue("NON-FRAUD", "NON-FRAUD", 1);
+				}else if(predetti.get(i) == 1 && reali.get(i) == 0){
+					cm.increaseValue("NON-FRAUD", "FRAUD", 1);
+				}else if(predetti.get(i) == 0 && reali.get(i) == 1){
+					cm.increaseValue("FRAUD", "NON-FRAUD", 1);
+				}else{
+					cm.increaseValue("FRAUD", "FRAUD", 1);
+				}
+				i++;
 			}
-		});
+			System.out.println(cm);
+
+		} catch (CmdLineException e) {
+			System.err.println(e.getMessage());
+			System.err.println("java -jar [jar-file] [options...] arguments...");
+			argsParser.printUsage(System.err);
+			System.err.println();
+			System.err.println(" Example: java -jar jKarma-fraud-detection"+
+					argsParser.printExample(OptionHandlerFilter.ALL)
+			);
+		} catch (FileNotFoundException e) {
+			System.err.println("File not found!");
+		}
 
 	}
 
