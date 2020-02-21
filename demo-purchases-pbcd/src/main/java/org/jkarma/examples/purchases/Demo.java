@@ -51,8 +51,8 @@ import org.kohsuke.args4j.OptionHandlerFilter;
 
 public class Demo
 {
-	@Option(name="-ms", aliases="--minSup", usage="Threshold above which a pattern is considered")
-	public float minSup = 0.4f;
+	@Option(name="-ms", aliases="--minSupport", usage="Threshold above which a pattern is considered")
+	public float minSup = 0.5f;
 
 	@Option(name="-mc", aliases="--minChange", usage="Threshold above which two blocks are different")
 	public float minChange = 0.8f;
@@ -61,7 +61,7 @@ public class Demo
 	public static int blockSize = 4;
 
 	@Option(name="-ma", aliases="--minAnomaly", usage="Threshold below which an example is anomalous")
-	public static float minAnomaly = 0.2f;
+	public static float minAnomaly = 0.1f;
 
 	@Option(name="-d", aliases="--depth", usage="Depth of research space of patterns")
 	public int depth = 3;
@@ -89,10 +89,10 @@ public class Demo
 		return transazioni.stream();
 	}
 
-	public Stream<Transazione> getData() throws FileNotFoundException{
-		return Utils.parseStream(new File(this.fileName), Transazione.class)
-				.sorted(Comparator.comparing(Transazione::getTimestamp));
-	}
+//	public Stream<Transazione> getData() throws FileNotFoundException{
+//		return Utils.parseStream(new File(this.fileName), Transazione.class)
+//				.sorted(Comparator.comparing(Transazione::getTimestamp));
+//	}
 
 
 	public PBCD<Transazione, String, TidSet, Boolean> getPBCD()
@@ -119,7 +119,7 @@ public class Demo
 			//we parse the command line arguments
 			argsParser.parseArgument(args);
 
-			Stream<Transazione> dataset =  demo.getData();
+			Stream<Transazione> dataset =  demo.getDataset(fileName);
 			PBCD<Transazione,String,TidSet,Boolean> detector = demo.getPBCD();
 
 			AtomicBoolean patternChanged = new AtomicBoolean();
@@ -141,7 +141,7 @@ public class Demo
 						public void changeDetected(ChangeDetectedEvent<String, TidSet> event)
 						{
 							patternChanged.set(true);
-							System.out.println("change detected: "+event.getAmount());
+							System.out.println("change detected: " + event.getAmount());
 	//						System.out.println("\tdescribed by:");
 	//
 	//						//and the associated explanation
@@ -164,7 +164,7 @@ public class Demo
 						public void changeNotDetected(ChangeNotDetectedEvent<String, TidSet> arg0)
 						{
 							patternChanged.set(false);
-							System.out.println("change not detected: "+ arg0.getAmount());
+							System.out.println("change not detected: " + arg0.getAmount());
 						}
 
 						@Override
@@ -183,6 +183,7 @@ public class Demo
 			AtomicInteger transactionCount = new AtomicInteger();
 			Vector<Byte> predetti = new Vector<>();
 			Vector<Byte> reali = new Vector<>();
+
 			dataset.forEach(transaction -> {
 				detector.accept(transaction);		//calcolo prima i pattern
 				try
@@ -211,7 +212,7 @@ public class Demo
 						}
 						catch (NullPointerException e)
 						{
-							//dato che il pirmo pattern risulta essere sempre vuoto, nullo cioe'
+							//dato che il primo pattern risulta essere sempre vuoto, nullo cioe'
 						}
 					}
 					transactionCount.getAndIncrement();
@@ -223,13 +224,13 @@ public class Demo
 						predetti.add((byte) 0);
 					}
 
-					if(transaction.getItems().toArray()[18].equals("TRUE")){	//se la transazione e' effettivamente fraudolenta
+					if(transaction.getLabel().equals("TRUE")){	//se la transazione e' effettivamente fraudolenta
 						reali.add((byte) 1);
 					}else{
 						reali.add((byte) 0);
 					}
 				}
-				catch(IllegalArgumentException e)
+				catch(IllegalArgumentException  e)
 				{
 					System.err.println("Calculating pattern...");
 				}
@@ -250,7 +251,10 @@ public class Demo
 				}
 				i++;
 			}
+
 			System.out.println(cm);
+			System.out.println(cm.getPrecisionForLabels());
+			System.out.println(cm.getRecallForLabels());
 
 		} catch (CmdLineException e) {
 			System.err.println(e.getMessage());

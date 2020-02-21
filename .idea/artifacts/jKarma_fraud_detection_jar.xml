@@ -1,0 +1,11 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="jKarma-fraud-detection:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/jKarma_fraud_detection_jar</output-path>
+    <root id="archive" name="jKarma-fraud-detection.jar">
+      <element id="module-output" name="jKarma-fraud-detection" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/demo-purchases-pbcd/lib/args4j.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/demo-purchases-pbcd/lib/jkarma-dev-extended.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/demo-purchases-pbcd/lib/confusion-matrix-1.0.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

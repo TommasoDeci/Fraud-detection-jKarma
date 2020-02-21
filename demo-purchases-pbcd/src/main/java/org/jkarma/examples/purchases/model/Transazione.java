@@ -20,6 +20,7 @@ import java.util.*;
 import java.util.concurrent.CompletionService;
 
 import com.univocity.parsers.annotations.Convert;
+import com.univocity.parsers.annotations.Parsed;
 import org.jkarma.examples.purchases.WordsToTransactionConverter;
 import org.jkarma.mining.joiners.TidSet;
 import org.jkarma.model.Transaction;
@@ -37,17 +38,10 @@ import com.google.common.collect.Sets;
  */
 public class Transazione implements Transaction<String>
 {
-	@Convert(conversionClass = WordsToTransactionConverter.class, args = {","})
 	private List<String> valori;
-
 	private Instant timestamp;
 	private Integer ID;
-
-
-	public Transazione()
-	{
-		//do nothing, just for the CSV parser
-	}
+	private String label;
 
 	public Transazione(String[] trans)
 	{
@@ -55,11 +49,12 @@ public class Transazione implements Transaction<String>
 		ID = Integer.parseInt(trans[0]);
 		valori = new ArrayList<>();
 		int i = 2;		//salto il transactionID e il cardID
-		while(i < trans.length)
+		while(i < trans.length-1)		//salto anche l'ultimo attributo, ovvero quello di classe (TRUE - FALSE)
 		{
 			valori.add(trans[i]);
 			i++;
 		}
+		label = trans[i];	//qui metto TRUE o FALSE, in modo che jKarma non lo consideri nella creazione dei patten
 	}
 
 	public int getId()
@@ -80,6 +75,11 @@ public class Transazione implements Transaction<String>
 	public Iterator<String> iterator()
 	{
 		return valori.iterator();
+	}
+
+	public String getLabel()
+	{
+		return label;
 	}
 
 	public String toString()
