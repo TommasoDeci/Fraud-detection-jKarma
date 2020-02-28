@@ -174,7 +174,6 @@ public class MainClass
             AtomicInteger transactionCount = new AtomicInteger();
             Vector<Byte> predetti = new Vector<>();
             Vector<Byte> reali = new Vector<>();
-            AtomicInteger count = new AtomicInteger(1);
             dataset.forEach(transaction -> {
                 detector.accept(transaction);		//calcolo prima i pattern
                 try
@@ -215,15 +214,6 @@ public class MainClass
                         predetti.add((byte) 0);
                     }
 
-                    printWriter.print(count.get());
-                    printWriter.print(",");
-                    printWriter.print(fpof);
-                    printWriter.print(",");
-                    printWriter.print(transaction.getLabel());
-                    printWriter.print("\n");
-
-                    count.getAndIncrement();
-
                     if(transaction.getLabel().equals("TRUE")){	//se la transazione e' effettivamente fraudolenta
                         reali.add((byte) 1);
                     }else{
@@ -252,9 +242,10 @@ public class MainClass
                 i++;
             }
 
-//            System.out.println(cm);
-//            System.out.println(cm.getPrecisionForLabels());
-//            System.out.println(cm.getRecallForLabels());
+            System.out.println(cm);
+            System.out.println(cm.getPrecisionForLabels());
+            System.out.println(cm.getRecallForLabels());
+
         } catch (CmdLineException e) {
             System.err.println(e.getMessage());
             System.err.println("java -jar [jar-file] [options...] arguments...");
