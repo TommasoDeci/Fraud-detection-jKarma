@@ -33,5 +33,29 @@
    	<skipTests>true</skipTests>
    	<revision>dev</revision>
   </properties>
-
+  
+  <dependencies>
+  	<dependency>
+  		<groupId>com.github.habernal</groupId>
+  		<artifactId>confusion-matrix</artifactId>
+  		<version>1.0</version>
+	</dependency>
+		<dependency>
+      <groupId>args4j</groupId>
+      <artifactId>args4j</artifactId>
+      <version>2.33</version>
+	</dependency>
+	<dependency>
+      <groupId>com.univocity</groupId>
+	  <artifactId>univocity-parsers</artifactId>
+	  <version>2.6.0</version>
+	</dependency>
+    <dependency>
+      <groupId>org.jkarma</groupId>
+      <artifactId>jkarma-core</artifactId>
+      <version>1.0.0</version>
+      <scope>system</scope>
+      <systemPath>${project.basedir}/lib/jkarma-dev-extended.jar</systemPath>
+    </dependency>
+  </dependencies>
 </project>
