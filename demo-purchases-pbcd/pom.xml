@@ -33,5 +33,5 @@
    	<skipTests>true</skipTests>
    	<revision>dev</revision>
   </properties>
-    
+
 </project>
