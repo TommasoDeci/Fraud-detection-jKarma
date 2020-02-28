@@ -102,8 +102,6 @@ public class MainClass
     public static void main(String[] args) throws IOException
     {
         long t0 = System.currentTimeMillis();
-        FileWriter fileWriter = new FileWriter("scores.txt");
-        PrintWriter printWriter = new PrintWriter(fileWriter);
         final MainClass mainClass = new MainClass();
         final CmdLineParser argsParser = new CmdLineParser(mainClass);
         try {
@@ -260,7 +258,6 @@ public class MainClass
         long t1 = System.currentTimeMillis();
 		double t = (double)(t1 - t0) / 1000.0;
         System.out.println("The JKarma algorithm took " + t + " seconds");
-        printWriter.close();
     }
 
     private static void addValue(Set<String> set, ItemSet<String,Pair<TidSet>> itemSet)
