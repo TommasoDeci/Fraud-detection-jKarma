@@ -16,16 +16,12 @@
 package org.jkarma.examples.purchases.model;
 
 import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.CompletionService;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 
-import com.univocity.parsers.annotations.Convert;
-import com.univocity.parsers.annotations.Parsed;
-import org.jkarma.examples.purchases.WordsToTransactionConverter;
-import org.jkarma.mining.joiners.TidSet;
 import org.jkarma.model.Transaction;
-
-import com.google.common.collect.Sets;
 
 
 /**
@@ -87,4 +83,11 @@ public class Transazione implements Transaction<String>
 		return ID.toString();
 	}
 
+	public boolean isAnomaly() {
+		return this.label.equalsIgnoreCase("true");
+	}
+	
+	public boolean isNormal() {
+		return !this.isAnomaly();
+	}
 }
