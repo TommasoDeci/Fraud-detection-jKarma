@@ -57,5 +57,10 @@
       <scope>system</scope>
       <systemPath>${project.basedir}/lib/jkarma-dev-extended.jar</systemPath>
     </dependency>
+      <dependency>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+          <version>28.2-jre</version>
+      </dependency>
   </dependencies>
 </project>
