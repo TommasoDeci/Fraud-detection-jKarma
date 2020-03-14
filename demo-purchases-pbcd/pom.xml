@@ -55,7 +55,7 @@
       <artifactId>jkarma-core</artifactId>
       <version>1.0.0</version>
       <scope>system</scope>
-      <systemPath>${project.basedir}/lib/jkarma-dev-extended.jar</systemPath>
+      <systemPath>${project.basedir}/lib/jkarma-dist-dev-bin.jar</systemPath>
     </dependency>
       <dependency>
           <groupId>com.google.guava</groupId>
